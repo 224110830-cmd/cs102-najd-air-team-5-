@@ -1,0 +1,11 @@
+# passengerId,fullName,email,phone,tier
+P1001,Sara Alqahtani,sara.alqahtani@example.com,0551000001,PLATINUM
+P1002,Omar Alharbi,omar.alharbi@example.com,0551000002,GOLD
+P1003,Lina Alotaibi,lina.alotaibi@example.com,0551000003,SILVER
+P1004,Khalid Alzahrani,khalid.alzahrani@example.com,0551000004,NONE
+P1005,Noura Aldosari,noura.aldosari@example.com,0551000005,GOLD
+P1006,Fahad Almutairi,fahad.almutairi@example.com,0551000006,PLATINUM
+P1007,Hana Alshehri,hana.alshehri@example.com,0551000007,SILVER
+P1008,Yousef Alghamdi,yousef.alghamdi@example.com,0551000008,NONE
+P1009,Reem Alanazi,reem.alanazi@example.com,0551000009,GOLD
+P1010,Majed Alsubaie,majed.alsubaie@example.com,0551000010,NONE

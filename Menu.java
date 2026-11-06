@@ -1,5 +1,6 @@
 package com.mycompany.cs102.project.step1;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Scanner;
@@ -12,8 +13,6 @@ public class Menu {
     private Repository<Booking> bookings = new Repository<>();
 
 
-
- 
     private int readInt(String prompt, int min, int max) {
         while (true) {
             System.out.print(prompt);
@@ -57,7 +56,7 @@ public class Menu {
         }
     }
 
- 
+
     private FrequentFlyerTier readTier() {
         System.out.println("1. PLATINUM  2. GOLD  3. SILVER  4. NONE");
         int choice = readInt("Tier: ", 1, 4);
@@ -73,25 +72,25 @@ public class Menu {
     }
 
 
-
-   private void loadData() {
-    FileManager.loadFlights(flights);
-    FileManager.loadPassengers(passengers);
-    FileManager.loadBookings(flights, passengers, bookings);
-    FileManager.loadUpgrades(bookings);
-}
-   // any changes to the data folder call this method
-    private void saveData() {
-    FileManager.saveAll(flights.getAll(), "flights.csv");
-    FileManager.saveAll(passengers.getAll(), "passengers.csv");
-    FileManager.saveAll(bookings.getAll(), "bookings.csv");
-
-    ArrayList<UpgradeRequest> allRequests = new ArrayList<>();
-    for (Flight f : flights.getAll()) {
-        allRequests.addAll(f.getUpgradeRequests());
+    private void loadData() {
+        FileManager.loadFlights(flights);
+        FileManager.loadPassengers(passengers);
+        FileManager.loadBookings(flights, passengers, bookings);
+        FileManager.loadUpgrades(bookings);
     }
-    FileManager.saveAll(allRequests, "upgrades.csv");
-}
+
+    // any changes to the data folder call this method
+    private void saveData() {
+        FileManager.saveAll(flights.getAll(), "flights.csv");
+        FileManager.saveAll(passengers.getAll(), "passengers.csv");
+        FileManager.saveAll(bookings.getAll(), "bookings.csv");
+
+        ArrayList<UpgradeRequest> allRequests = new ArrayList<>();
+        for (Flight f : flights.getAll()) {
+            allRequests.addAll(f.getUpgradeRequests());
+        }
+        FileManager.saveAll(allRequests, "upgrades.csv");
+    }
 
     public void run() {
         loadData();
@@ -154,26 +153,56 @@ public class Menu {
         System.out.println("            0. Save and exit");
     }
 
-    // F1 
+    // prints one flight: route, times, duration, fare and free seats per cabin
+    private void printFlight(Flight f) {
+        LocalDateTime arrival = Route.arrivalOf(f);
+        int hours = f.getDurationInMinutes() / 60;
+        int minutes = f.getDurationInMinutes() % 60;
+
+        int firstFree = 0;
+        int businessFree = 0;
+        int economyFree = 0;
+        for (Seat s : f.getSeats()) {
+            if (!s.getIsBooked()) {
+                if (s instanceof FirstClassSeat) {
+                    firstFree++;
+                } else if (s instanceof BusinessSeat) {
+                    businessFree++;
+                } else {
+                    economyFree++;
+                }
+            }
+        }
+
+        System.out.println(f.getFlightNumber() + " " + f.getOrigin() + " -> " + f.getDestination()
+                + "  " + f.getDepartureTime().toString().replace("T", " ")
+                + " -> " + arrival.toString().replace("T", " ")
+                + "  (" + hours + "h " + minutes + "m)  " + f.getBaseFare() + " SAR");
+        System.out.println("    Free seats - First: " + firstFree + " of " + f.getFirstClassSeatCount()
+                + ", Business: " + businessFree + " of " + f.getBusinessSeatCount()
+                + ", Economy: " + economyFree + " of " + f.getEconomySeatCount());
+    }
+
+    // F1
     private void listFlights() {
-        ArrayList<Flight> list = flights.getAll();
-        Collections.sort(list); 
+        ArrayList<Flight> list = new ArrayList<>(flights.getAll());
+        Collections.sort(list);
         if (list.isEmpty()) {
             System.out.println("No flights yet.");
         }
         for (Flight f : list) {
-            System.out.println(f); 
+            printFlight(f);
         }
     }
 
-    //F2 
+    //F2
     private void searchDirectFlights() {
         String from = readText("From (airport code): ").toUpperCase();
         String to = readText("To (airport code): ").toUpperCase();
         boolean found = false;
         for (Flight f : flights.getAll()) {
             if (f.getOrigin().equals(from) && f.getDestination().equals(to)) {
-                System.out.println(f);
+                printFlight(f);
                 found = true;
             }
         }
@@ -182,7 +211,7 @@ public class Menu {
         }
     }
 
-    // F3 
+    // F3
     private void findConnectingRoutes() {
         String from = readText("From: ").toUpperCase();
         String to = readText("To: ").toUpperCase();
@@ -203,7 +232,7 @@ public class Menu {
         }
     }
 
-    // F4 
+    // F4
     private void viewSeatMap() {
         String number = readText("Flight number: ").toUpperCase();
         Flight f = flights.get(number);
@@ -214,7 +243,7 @@ public class Menu {
         }
     }
 
-    //F5 
+    //F5
     private void registerPassenger() {
         while (true) {
             String name = readText("Full name: ");
@@ -242,13 +271,12 @@ public class Menu {
                 System.out.println("Registered. Passenger ID: " + id);
                 return;
             } catch (Exception e) {
-                // the Passenger constructor rejected a bad value
                 System.out.println("Invalid data: " + e.getMessage() + ". Try again.");
             }
         }
     }
 
-    //F6 
+    //F6
     private void listPassengers() {
         if (passengers.size() == 0) {
             System.out.println("No passengers yet.");
@@ -283,7 +311,7 @@ public class Menu {
         }
     }
 
-    //F14 
+    //F14
     private void addFlight() {
         while (true) {
             String number = readText("Flight number (e.g. NA101): ").toUpperCase();
@@ -297,7 +325,8 @@ public class Menu {
             int economy = readInt("Economy seats (1-300): ", 1, 300);
 
             try {
-                Flight f = new Flight(number, from, to, departure, duration, fare,
+                LocalDateTime time = FileManager.makeDateTime(departure);
+                Flight f = new Flight(number, from, to, time, duration, fare,
                         first, business, economy);
                 if (flights.add(f)) {
                     saveData();
@@ -306,7 +335,7 @@ public class Menu {
                 }
                 System.out.println("That flight number already exists. Try again.");
             } catch (Exception e) {
-                System.out.println("Invalid data: " + e.getMessage() + ". Try again.");
+                System.out.println("Invalid data, check every value and the date format. Try again.");
             }
         }
     }

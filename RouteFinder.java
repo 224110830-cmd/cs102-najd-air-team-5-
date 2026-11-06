@@ -25,20 +25,19 @@ public class RouteFinder {
         this.destination = destination;
         this.maxFlights = maxFlights;
 
-        LinkedList<Flight> path = new LinkedList<>();     
-        HashSet<String> visited = new HashSet<>();        
+        LinkedList<Flight> path = new LinkedList<>();
+        HashSet<String> visited = new HashSet<>();
         visited.add(origin);
 
         search(origin, path, visited);
         // here it uses compareto from the route class
-        Collections.sort(results);                       
+        Collections.sort(results);
         return results;
     }
 
 
     private void search(String current, LinkedList<Flight> path, HashSet<String> visited) {
 
- 
         if (current.equals(destination)) {
             results.add(new Route(path));
             return;
@@ -50,7 +49,7 @@ public class RouteFinder {
 
         ArrayList<Flight> options = flightsFrom.get(current);
         if (options == null) {
-            return;                                     
+            return;
         }
 
         for (Flight f : options) {
@@ -61,9 +60,8 @@ public class RouteFinder {
                 continue;
             }
 
-            
             if (!path.isEmpty()) {
-                long layover = f.getDepartureMinutes() - path.getLast().getArrivalMinutes();
+                long layover = Route.minutesBetween(Route.arrivalOf(path.getLast()), f.getDepartureTime());
                 if (layover < 60 || layover > 24 * 60) {
                     continue;
                 }
@@ -73,7 +71,7 @@ public class RouteFinder {
             visited.add(next);
             //recursive
             search(next, path, visited);
-            
+
             path.removeLast();
             visited.remove(next);
         }

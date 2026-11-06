@@ -8,6 +8,10 @@ package com.mycompany.cs102.project.step1;
  *
  * @author saleh
  */
-public class InvalidDataException {
+public class InvalidDataException extends Exception{
+
+    public InvalidDataException(String message) {
+        super(message);
+    }
     
 }

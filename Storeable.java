@@ -9,5 +9,6 @@ package com.mycompany.cs102.project.step1;
  * @author saleh
  */
 public interface Storeable {
-    
+    String getId();
+    String toFileLine();
 }

@@ -11,6 +11,8 @@ public class Menu {
     private Repository<Flight> flights = new Repository<>();
     private Repository<Passenger> passengers = new Repository<>();
     private Repository<Booking> bookings = new Repository<>();
+    // MEMBER 2: the booking rules. It must stay BELOW the three repositories above.
+    private BookingService service = new BookingService(flights, passengers, bookings);
 
 
     private int readInt(String prompt, int min, int max) {
@@ -114,17 +116,17 @@ public class Menu {
             } else if (choice == 7) {
                 updatePassenger();
             } else if (choice == 8) {
-                System.out.println("Book a seat: connect to Member 2's code.");
+                bookSeat();
             } else if (choice == 9) {
-                System.out.println("View bookings: connect to Member 2's code.");
+                viewPassengerBookings();
             } else if (choice == 10) {
-                System.out.println("Cancel a booking: connect to Member 2's code.");
+                cancelBooking();
             } else if (choice == 11) {
-                System.out.println("Request upgrade: connect to Member 2's code.");
+                requestUpgrade();
             } else if (choice == 12) {
-                System.out.println("View waitlist: connect to Member 2's code.");
+                viewWaitlist();
             } else if (choice == 13) {
-                System.out.println("Process upgrades: connect to Member 2's code.");
+                processUpgrades();
             } else if (choice == 14) {
                 addFlight();
             }
@@ -309,6 +311,176 @@ public class Menu {
         } catch (Exception e) {
             System.out.println("Invalid data: " + e.getMessage());
         }
+    }
+
+    // =====================================================================
+    //  MEMBER 2: F8 to F13. The menu only asks and prints;
+    //  every rule is checked inside BookingService.
+    // =====================================================================
+
+    // F8
+    private void bookSeat() {
+        Passenger p = passengers.get(readText("Passenger ID: ").toUpperCase());
+        if (p == null) {
+            System.out.println("No such passenger.");
+            return;
+        }
+        Flight f = flights.get(readText("Flight number: ").toUpperCase());
+        if (f == null) {
+            System.out.println("No such flight.");
+            return;
+        }
+        if (service.hasConfirmedBooking(p, f)) {
+            System.out.println(p.getFullName() + " already has a confirmed seat on this flight.");
+            return;
+        }
+
+        // show the three cabins: free seats and the price for THIS passenger
+        System.out.println(f.getFlightNumber() + " " + f.getOrigin() + " -> " + f.getDestination()
+                + " " + f.getDepartureTime().toString().replace("T", " "));
+        Cabin[] cabins = {Cabin.FIRST_cLASS, Cabin.BUSINESS_CLASS, Cabin.ECONOMY_CLASS};
+        String[] names = {"First", "Business", "Economy"};
+        int[] totals = {f.getFirstClassSeatCount(), f.getBusinessSeatCount(), f.getEconomySeatCount()};
+        for (int i = 0; i < 3; i++) {
+            double price = Math.round(f.getBaseFare() * cabins[i].getPriceMultiplyer()
+                    * (1.0 - p.getTier().getDiscount()) * 100.0) / 100.0;
+            System.out.println("  " + (i + 1) + ". " + names[i] + " "
+                    + service.getFreeSeats(f, cabins[i]).size() + " of " + totals[i] + " free  "
+                    + String.format("%,.2f", price) + " SAR");
+        }
+
+        int choice = readInt("Cabin: ", 1, 3);
+        Cabin cabin = cabins[choice - 1];
+        ArrayList<Seat> free = service.getFreeSeats(f, cabin);
+        if (free.isEmpty()) {
+            System.out.println("No free seats in " + names[choice - 1] + ".");
+            return;
+        }
+
+        System.out.print("Free " + names[choice - 1] + " seats:");
+        for (Seat s : free) {
+            System.out.print(" " + s.getSeatNumber());
+        }
+        System.out.println();
+
+        // choose the seat: Enter = first free seat
+        Seat seat = null;
+        while (seat == null) {
+            System.out.print("Seat number (Enter = first free seat, " + free.get(0).getSeatNumber() + "): ");
+            String text = input.nextLine().trim().toUpperCase();
+            if (text.isEmpty()) {
+                seat = free.get(0);
+            } else if (free.contains(f.getSeat(text))) {
+                seat = f.getSeat(text);
+            } else {
+                System.out.println("That is not a free seat in this cabin. Try again.");
+            }
+        }
+
+        double price = seat.calculatePrice(f.getBaseFare(), p.getTier());
+        System.out.println("Seat " + seat.getSeatNumber() + " (" + names[choice - 1] + "): "
+                + seat.getPerks() + ". Baggage " + seat.getBaggageAllowanceKg() + " kg.");
+        System.out.println("Price: " + String.format("%,.2f", price) + " SAR ("
+                + p.getTier() + " discount " + (int) Math.round(p.getTier().getDiscount() * 100) + "%)");
+
+        if (!readYesNo("Confirm booking?")) {
+            System.out.println("Booking cancelled. Nothing was saved.");
+            return;
+        }
+        try {
+            Booking b = service.bookSeat(p, f, seat);
+            saveData();
+            System.out.println("Booking confirmed. Reference: " + b.getBookingRef());
+        } catch (BookingException e) {
+            System.out.println("Could not book: " + e.getMessage());
+        }
+    }
+
+    // F9
+    private void viewPassengerBookings() {
+        Passenger p = passengers.get(readText("Passenger ID: ").toUpperCase());
+        if (p == null) {
+            System.out.println("No such passenger.");
+            return;
+        }
+        ArrayList<Booking> list = service.getBookingsOf(p);
+        if (list.isEmpty()) {
+            System.out.println("No bookings for " + p.getFullName() + ".");
+            return;
+        }
+        for (Booking b : list) {
+            System.out.println(b);
+        }
+        System.out.println("Total paid (confirmed bookings): "
+                + String.format("%,.2f", service.getTotalPaid(list)) + " SAR");
+    }
+
+    // F10
+    private void cancelBooking() {
+        String ref = readText("Booking reference: ").toUpperCase();
+        try {
+            service.cancelBooking(ref);
+            saveData();
+            System.out.println("Booking " + ref + " cancelled. The seat is free again.");
+        } catch (BookingException e) {
+            System.out.println("Could not cancel: " + e.getMessage());
+        }
+    }
+
+    // F11
+    private void requestUpgrade() {
+        String ref = readText("Booking reference: ").toUpperCase();
+        try {
+            int position = service.requestUpgrade(ref);
+            saveData();
+            System.out.println("Request added. Your position in the waitlist: " + position);
+        } catch (BookingException e) {
+            System.out.println("Could not request upgrade: " + e.getMessage());
+        }
+    }
+
+    // F12
+    private void viewWaitlist() {
+        Flight f = flights.get(readText("Flight number: ").toUpperCase());
+        if (f == null) {
+            System.out.println("No such flight.");
+            return;
+        }
+        ArrayList<UpgradeRequest> line = f.getWaitlistInOrder();
+        if (line.isEmpty()) {
+            System.out.println("The waitlist for " + f.getFlightNumber() + " is empty.");
+            return;
+        }
+        System.out.println("Business free seats: "
+                + service.getFreeSeats(f, Cabin.BUSINESS_CLASS).size());
+        int position = 1;
+        for (UpgradeRequest r : line) {
+            Booking b = bookings.get(r.getBookingRef());
+            String name = (b == null) ? "?" : b.getPassenger().getFullName();
+            System.out.println(position + ". " + r.getBookingRef() + " | " + name
+                    + " | " + r.getTierAtRequest() + " | requested "
+                    + r.getRequestedAt().toString().replace("T", " "));
+            position++;
+        }
+    }
+
+    // F13
+    private void processUpgrades() {
+        Flight f = flights.get(readText("Flight number: ").toUpperCase());
+        if (f == null) {
+            System.out.println("No such flight.");
+            return;
+        }
+        ArrayList<Booking> done = service.processUpgrades(f);
+        saveData();
+        if (done.isEmpty()) {
+            System.out.println("No upgrades were made (empty waitlist or business class is full).");
+        }
+        for (Booking b : done) {
+            System.out.println("Upgraded " + b.getBookingRef() + " (" + b.getPassenger().getFullName()
+                    + ") to business seat " + b.getSeat().getSeatNumber());
+        }
+        System.out.println("Still waiting: " + f.getUpgradeRequests().size());
     }
 
     //F14

@@ -203,6 +203,46 @@ public Seat getSeat(String seatNumber)  {
     return null;
 }
 
+    // ===== MEMBER 2: business-class upgrade waitlist (one per flight) =====
+    // PriorityQueue keeps the "best" request at the front, using UpgradeRequest.compareTo().
+    private PriorityQueue<UpgradeRequest> upgradeRequests = new PriorityQueue<>();
+
+    /** Adds a request. Returns false if this booking is already waiting (only once allowed). */
+    public boolean addUpgradeRequest(UpgradeRequest request) {
+        for (UpgradeRequest r : upgradeRequests) {
+            if (r.getBookingRef().equals(request.getBookingRef())) {
+                return false;
+            }
+        }
+        upgradeRequests.add(request);
+        return true;
+    }
+
+    /** The queue itself. WARNING: looping over it does NOT give priority order, use getWaitlistInOrder(). */
+    public PriorityQueue<UpgradeRequest> getUpgradeRequests() {
+        return upgradeRequests;
+    }
+
+    /** Removes the request of one booking (used when the booking is cancelled). */
+    public boolean removeUpgradeRequest(String bookingRef) {
+        return upgradeRequests.removeIf(r -> r.getBookingRef().equals(bookingRef));
+    }
+
+    /**
+     * The waitlist in the exact order people will be upgraded.
+     * We copy the queue and poll() the copy, because poll() always returns the
+     * next request in priority order, while a for-each loop shows the internal heap order.
+     */
+    public ArrayList<UpgradeRequest> getWaitlistInOrder() {
+        PriorityQueue<UpgradeRequest> copy = new PriorityQueue<>(upgradeRequests);
+        ArrayList<UpgradeRequest> ordered = new ArrayList<>();
+        while (!copy.isEmpty()) {
+            ordered.add(copy.poll());
+        }
+        return ordered;
+    }
+    // ===== end of Member 2 part =====
+
     @Override
     public String getId() {
         return flightNumber;
